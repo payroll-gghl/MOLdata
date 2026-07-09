@@ -1,0 +1,43 @@
+name: Update app data from PDFs
+
+# Runs automatically whenever a PDF is added, replaced, or removed.
+# Can also be run manually from the Actions tab ("Run workflow").
+on:
+  push:
+    paths:
+      - "**.pdf"
+      - "parse_pdfs.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the repository files
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PDF parser library
+        run: pip install pdfplumber
+
+      - name: Parse all PDFs into data.js
+        run: python parse_pdfs.py
+
+      - name: Commit the refreshed data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.js
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "Auto-refresh data from PDFs"
+            git push
+          fi

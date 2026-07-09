@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOHRE Employee Registry — GGHL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#15232d;          /* deep ministry navy */
+    --paper:#f2f4f3;
+    --card:#ffffff;
+    --line:#dbe2e0;
+    --uae-green:#0f7a4d;    /* accent drawn from the flag */
+    --uae-green-soft:#e2f2ea;
+    --gold:#b98a2f;
+    --red:#c0392b;
+    --red-soft:#fdeceb;
+    --amber:#b76e00;
+    --amber-soft:#fdf3e1;
+    --mut:#5d6f6d;
+    --radius:10px;
+    font-size:15px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--paper);color:var(--ink)}
+  header{
+    background:var(--ink);color:#fff;
+    padding:18px 26px 16px;
+    display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;
+    border-bottom:4px solid var(--uae-green);
+  }
+  .brand h1{font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:1.55rem;letter-spacing:.4px;line-height:1.1}
+  .brand small{color:#9fb3ae;font-size:.78rem;letter-spacing:.8px;text-transform:uppercase}
+  .meta{color:#c9d6d2;font-size:.78rem;text-align:right;line-height:1.5}
+  .meta b{color:#fff}
+
+  .toolbar{padding:16px 26px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+  .slicer{position:relative}
+  .slicer > button{
+    font-family:'Inter',sans-serif;font-size:.82rem;font-weight:500;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:9px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;min-width:150px;
+    transition:border-color .15s;
+  }
+  .slicer > button:hover{border-color:var(--uae-green)}
+  .slicer > button .count{
+    background:var(--uae-green);color:#fff;border-radius:20px;font-size:.68rem;
+    padding:1px 7px;font-weight:600;display:none;
+  }
+  .slicer.active > button{border-color:var(--uae-green);box-shadow:0 0 0 2px var(--uae-green-soft)}
+  .slicer.active > button .count{display:inline-block}
+  .slicer .caret{margin-left:auto;color:var(--mut);font-size:.65rem}
+  .panel{
+    display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:40;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:0 10px 28px rgba(21,35,45,.14);min-width:260px;max-width:340px;
+  }
+  .panel.open{display:block}
+  .panel .p-head{display:flex;gap:6px;padding:8px;border-bottom:1px solid var(--line)}
+  .panel .p-head input{flex:1;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:.8rem}
+  .panel .p-head button{border:none;background:none;color:var(--uae-green);font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap}
+  .panel .opts{max-height:280px;overflow:auto;padding:6px 0}
+  .panel label{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:.8rem;cursor:pointer}
+  .panel label:hover{background:var(--uae-green-soft)}
+  .panel label input{accent-color:var(--uae-green)}
+  .panel label .n{margin-left:auto;color:var(--mut);font-size:.7rem}
+
+  .search{flex:1;min-width:220px}
+  .search input{
+    width:100%;border:1px solid var(--line);border-radius:var(--radius);
+    padding:9px 12px;font-size:.85rem;background:var(--card);
+  }
+  .search input:focus{outline:none;border-color:var(--uae-green);box-shadow:0 0 0 2px var(--uae-green-soft)}
+  .btn{
+    border:none;border-radius:var(--radius);padding:10px 16px;font-size:.82rem;font-weight:600;
+    cursor:pointer;font-family:'Inter',sans-serif;display:inline-flex;align-items:center;gap:7px;
+  }
+  .btn-green{background:var(--uae-green);color:#fff}
+  .btn-green:hover{background:#0c6440}
+  .btn-ghost{background:var(--card);border:1px solid var(--line);color:var(--ink)}
+  .btn-ghost:hover{border-color:var(--red);color:var(--red)}
+
+  .stats{padding:14px 26px 0;display:flex;gap:12px;flex-wrap:wrap}
+  .stat{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:10px 16px;min-width:130px;
+  }
+  .stat .v{font-family:'Barlow Semi Condensed',sans-serif;font-size:1.5rem;font-weight:700;line-height:1}
+  .stat .l{font-size:.68rem;letter-spacing:.6px;text-transform:uppercase;color:var(--mut);margin-top:3px}
+  .stat.s-exp .v{color:var(--red)}
+  .stat.s-soon .v{color:var(--amber)}
+  .stat.s-ok .v{color:var(--uae-green)}
+
+  .tablewrap{margin:16px 26px 30px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .t-scroll{overflow:auto;max-height:calc(100vh - 320px)}
+  table{border-collapse:collapse;width:100%;font-size:.79rem;min-width:1150px}
+  thead th{
+    position:sticky;top:0;background:var(--ink);color:#fff;text-align:left;
+    padding:9px 10px;font-family:'Barlow Semi Condensed',sans-serif;font-weight:600;
+    font-size:.76rem;letter-spacing:.5px;white-space:nowrap;cursor:pointer;user-select:none;z-index:5;
+  }
+  thead th .arr{font-size:.6rem;opacity:.6;margin-left:3px}
+  tbody td{padding:7px 10px;border-bottom:1px solid #edf1f0;vertical-align:top}
+  tbody tr:hover{background:#f7faf9}
+  td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .pill{display:inline-block;border-radius:20px;padding:2px 9px;font-size:.7rem;font-weight:600;white-space:nowrap}
+  .pill.exp{background:var(--red-soft);color:var(--red)}
+  .pill.soon{background:var(--amber-soft);color:var(--amber)}
+  .pill.ok{background:var(--uae-green-soft);color:var(--uae-green)}
+  .pill.na{background:#eef0ef;color:var(--mut)}
+  .empty{padding:50px;text-align:center;color:var(--mut);font-size:.9rem}
+  .foot{padding:10px 14px;border-top:1px solid var(--line);font-size:.72rem;color:var(--mut);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
+  @media (max-width:760px){
+    header{padding:14px 16px}
+    .toolbar,.stats{padding-left:16px;padding-right:16px}
+    .tablewrap{margin:14px 16px 24px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <small>Gulf Group Holding · HR Operations</small>
+    <h1>MOHRE Employee Registry</h1>
+  </div>
+  <div class="meta">
+    Data generated: <b id="genDate">—</b><br>
+    Source files: <b id="srcFiles">—</b>
+  </div>
+</header>
+
+<div class="toolbar" id="toolbar">
+  <!-- slicers injected here -->
+  <div class="search"><input id="searchBox" type="search" placeholder="Search name, passport, person code, card number, job…"></div>
+  <button class="btn btn-ghost" id="clearBtn">✕ Clear filters</button>
+  <button class="btn btn-green" id="exportBtn">⬇ Export to Excel</button>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="v" id="stTotal">0</div><div class="l">Records shown</div></div>
+  <div class="stat s-ok"><div class="v" id="stValid">0</div><div class="l">Valid permits</div></div>
+  <div class="stat s-soon"><div class="v" id="stSoon">0</div><div class="l">Expiring ≤ 90 days</div></div>
+  <div class="stat s-exp"><div class="v" id="stExp">0</div><div class="l">Expired</div></div>
+  <div class="stat"><div class="v" id="stEst">0</div><div class="l">Establishments</div></div>
+</div>
+
+<div class="tablewrap">
+  <div class="t-scroll"><table id="tbl">
+    <thead><tr id="theadRow"></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+  <div class="foot">
+    <span id="footInfo"></span>
+    <span>Permit status: <span class="pill ok">Valid</span> <span class="pill soon">≤ 90 days</span> <span class="pill exp">Expired</span></span>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+(function(){
+  const DATA = (window.MOHRE_DATA && window.MOHRE_DATA.records) || [];
+  document.getElementById('genDate').textContent = (window.MOHRE_DATA||{}).generated || '—';
+  document.getElementById('srcFiles').textContent = ((window.MOHRE_DATA||{}).files||[]).join(', ') || '—';
+
+  const SLICERS = [
+    {key:'estNumber',   label:'Establishment Number'},
+    {key:'estName',     label:'Establishment Name'},
+    {key:'cardType',    label:'Card Type'},
+    {key:'nationality', label:'Nationality'},
+    {key:'contractType',label:'Contract Type'},
+  ];
+  const COLS = [
+    {key:'estNumber',   label:'Est. No.'},
+    {key:'estName',     label:'Establishment Name'},
+    {key:'passport',    label:'Passport Number', cls:'num'},
+    {key:'personName',  label:'Person Name'},
+    {key:'personCode',  label:'Person Code', cls:'num'},
+    {key:'cardType',    label:'Card Type'},
+    {key:'jobName',     label:'Job Name'},
+    {key:'nationality', label:'Nationality'},
+    {key:'cardNumber',  label:'Card Number', cls:'num'},
+    {key:'expiryDate',  label:'Expiry Date', cls:'num'},
+    {key:'contractType',label:'Contract Type'},
+  ];
+
+  const state = { sel:{}, search:'', sortKey:null, sortDir:1 };
+  SLICERS.forEach(s => state.sel[s.key] = new Set());
+
+  // ---------- date helpers ----------
+  function parseD(s){ // dd/mm/yyyy -> Date
+    if(!s) return null;
+    const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return m ? new Date(+m[3], +m[2]-1, +m[1]) : null;
+  }
+  const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+  const SOON = new Date(TODAY); SOON.setDate(SOON.getDate()+90);
+  function status(r){
+    const d = parseD(r.expiryDate);
+    if(!d) return 'na';
+    if(d < TODAY) return 'exp';
+    if(d <= SOON) return 'soon';
+    return 'ok';
+  }
+
+  // ---------- slicers ----------
+  const toolbar = document.getElementById('toolbar');
+  SLICERS.forEach(s=>{
+    const wrap = document.createElement('div');
+    wrap.className='slicer'; wrap.dataset.key=s.key;
+    wrap.innerHTML = `
+      <button type="button"><span>${s.label}</span><span class="count">0</span><span class="caret">▼</span></button>
+      <div class="panel">
+        <div class="p-head">
+          <input type="text" placeholder="Filter list…">
+          <button type="button" class="selAll">All</button>
+          <button type="button" class="selNone">None</button>
+        </div>
+        <div class="opts"></div>
+      </div>`;
+    toolbar.insertBefore(wrap, document.querySelector('.search'));
+    wrap.querySelector('button').addEventListener('click', e=>{
+      e.stopPropagation();
+      const p = wrap.querySelector('.panel');
+      document.querySelectorAll('.panel.open').forEach(x=>{ if(x!==p) x.classList.remove('open'); });
+      p.classList.toggle('open');
+      renderOptions(s.key);
+    });
+    wrap.querySelector('.panel').addEventListener('click', e=>e.stopPropagation());
+    wrap.querySelector('.p-head input').addEventListener('input', ()=>renderOptions(s.key));
+    wrap.querySelector('.selAll').addEventListener('click', ()=>{ state.sel[s.key]=new Set(valuesFor(s.key)); apply(); renderOptions(s.key); });
+    wrap.querySelector('.selNone').addEventListener('click', ()=>{ state.sel[s.key].clear(); apply(); renderOptions(s.key); });
+  });
+  document.addEventListener('click', ()=>document.querySelectorAll('.panel.open').forEach(x=>x.classList.remove('open')));
+
+  function rowsWithout(exceptKey){
+    return DATA.filter(r=>{
+      for(const s of SLICERS){
+        if(s.key===exceptKey) continue;
+        const sel = state.sel[s.key];
+        if(sel.size && !sel.has(r[s.key])) return false;
+      }
+      return matchSearch(r);
+    });
+  }
+  function valuesFor(key){
+    const set = new Set(DATA.map(r=>r[key]).filter(Boolean));
+    return [...set].sort();
+  }
+  function renderOptions(key){
+    const wrap = document.querySelector(`.slicer[data-key="${key}"]`);
+    const q = wrap.querySelector('.p-head input').value.toLowerCase();
+    const counts = {};
+    rowsWithout(key).forEach(r=>{ counts[r[key]]=(counts[r[key]]||0)+1; });
+    const opts = wrap.querySelector('.opts');
+    opts.innerHTML='';
+    valuesFor(key).forEach(v=>{
+      if(q && !v.toLowerCase().includes(q)) return;
+      const l = document.createElement('label');
+      l.innerHTML = `<input type="checkbox" ${state.sel[key].has(v)?'checked':''}><span>${v}</span><span class="n">${counts[v]||0}</span>`;
+      l.querySelector('input').addEventListener('change', e=>{
+        e.target.checked ? state.sel[key].add(v) : state.sel[key].delete(v);
+        apply();
+      });
+      opts.appendChild(l);
+    });
+  }
+
+  // ---------- filtering ----------
+  function matchSearch(r){
+    if(!state.search) return true;
+    const q = state.search;
+    return [r.passport,r.personName,r.personCode,r.cardNumber,r.jobName,r.cardType,r.nationality,r.estName,r.estNumber]
+      .some(v => v && v.toLowerCase().includes(q));
+  }
+  function filtered(){
+    let rows = DATA.filter(r=>{
+      for(const s of SLICERS){
+        const sel = state.sel[s.key];
+        if(sel.size && !sel.has(r[s.key])) return false;
+      }
+      return matchSearch(r);
+    });
+    if(state.sortKey){
+      const k = state.sortKey, dir = state.sortDir;
+      rows = rows.slice().sort((a,b)=>{
+        let va=a[k]||'', vb=b[k]||'';
+        if(k==='expiryDate'){ va=parseD(va)||0; vb=parseD(vb)||0; }
+        return (va<vb?-1:va>vb?1:0)*dir;
+      });
+    }
+    return rows;
+  }
+
+  // ---------- table ----------
+  const theadRow = document.getElementById('theadRow');
+  COLS.forEach(c=>{
+    const th = document.createElement('th');
+    th.innerHTML = `${c.label}<span class="arr"></span>`;
+    th.addEventListener('click', ()=>{
+      if(state.sortKey===c.key) state.sortDir*=-1;
+      else { state.sortKey=c.key; state.sortDir=1; }
+      apply();
+    });
+    th.dataset.key=c.key;
+    theadRow.appendChild(th);
+  });
+
+  const PAGE = 200;
+  let shownCount = PAGE;
+  document.querySelector('.t-scroll').addEventListener('scroll', function(){
+    if(this.scrollTop + this.clientHeight >= this.scrollHeight - 200){
+      const rows = filtered();
+      if(shownCount < rows.length){ shownCount += PAGE; renderTable(rows); }
+    }
+  });
+
+  function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  function renderTable(rows){
+    const tb = document.getElementById('tbody');
+    if(!rows.length){
+      tb.innerHTML = `<tr><td colspan="${COLS.length}" class="empty">No records match the current filters.</td></tr>`;
+    } else {
+      tb.innerHTML = rows.slice(0, shownCount).map(r=>{
+        const st = status(r);
+        return `<tr>${COLS.map(c=>{
+          if(c.key==='expiryDate'){
+            const lbl = r.expiryDate || '—';
+            return `<td class="num"><span class="pill ${st}">${lbl}</span></td>`;
+          }
+          return `<td class="${c.cls||''}">${esc(r[c.key])}</td>`;
+        }).join('')}</tr>`;
+      }).join('');
+    }
+    document.getElementById('footInfo').textContent =
+      `Showing ${Math.min(shownCount, rows.length)} of ${rows.length} filtered records · ${DATA.length} total in dataset`;
+    // sort arrows
+    document.querySelectorAll('thead th').forEach(th=>{
+      th.querySelector('.arr').textContent = th.dataset.key===state.sortKey ? (state.sortDir===1?'▲':'▼') : '';
+    });
+  }
+
+  function renderStats(rows){
+    let ok=0, soon=0, exp=0;
+    rows.forEach(r=>{ const s=status(r); if(s==='ok')ok++; else if(s==='soon')soon++; else if(s==='exp')exp++; });
+    document.getElementById('stTotal').textContent = rows.length;
+    document.getElementById('stValid').textContent = ok;
+    document.getElementById('stSoon').textContent = soon;
+    document.getElementById('stExp').textContent = exp;
+    document.getElementById('stEst').textContent = new Set(rows.map(r=>r.estNumber)).size;
+  }
+
+  function renderSlicerCounts(){
+    SLICERS.forEach(s=>{
+      const wrap = document.querySelector(`.slicer[data-key="${s.key}"]`);
+      const n = state.sel[s.key].size;
+      wrap.classList.toggle('active', n>0);
+      wrap.querySelector('.count').textContent = n;
+    });
+  }
+
+  function apply(){
+    shownCount = PAGE;
+    const rows = filtered();
+    renderTable(rows);
+    renderStats(rows);
+    renderSlicerCounts();
+  }
+
+  // ---------- search / clear ----------
+  document.getElementById('searchBox').addEventListener('input', function(){
+    state.search = this.value.trim().toLowerCase(); apply();
+  });
+  document.getElementById('clearBtn').addEventListener('click', ()=>{
+    SLICERS.forEach(s=>state.sel[s.key].clear());
+    state.search=''; document.getElementById('searchBox').value='';
+    state.sortKey=null; apply();
+  });
+
+  // ---------- Excel export ----------
+  document.getElementById('exportBtn').addEventListener('click', ()=>{
+    const rows = filtered();
+    const header = COLS.map(c=>c.label).concat(['Permit Status','Source File']);
+    const body = rows.map(r=>{
+      const st = status(r);
+      const stLbl = st==='ok'?'Valid':st==='soon'?'Expiring ≤90 days':st==='exp'?'Expired':'—';
+      return COLS.map(c=>{
+        if(c.key==='expiryDate'){
+          const d = parseD(r.expiryDate);
+          return d ? d : '';
+        }
+        return r[c.key]||'';
+      }).concat([stLbl, r.sourceFile||'']);
+    });
+    const ws = XLSX.utils.aoa_to_sheet([header, ...body], {cellDates:true});
+    ws['!cols'] = header.map((h,i)=>({wch: i===3||i===5 ? 38 : Math.max(12, h.length+2)}));
+    // format expiry as date
+    const expCol = COLS.findIndex(c=>c.key==='expiryDate');
+    for(let R=1; R<=body.length; R++){
+      const cell = ws[XLSX.utils.encode_cell({r:R, c:expCol})];
+      if(cell && cell.v instanceof Date){ cell.t='d'; cell.z='dd/mm/yyyy'; }
+    }
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Employee List');
+    // summary sheet
+    const byEst={}, byNat={}, byCard={};
+    rows.forEach(r=>{
+      byEst[r.estNumber+' — '+r.estName]=(byEst[r.estNumber+' — '+r.estName]||0)+1;
+      byNat[r.nationality]=(byNat[r.nationality]||0)+1;
+      byCard[r.cardType]=(byCard[r.cardType]||0)+1;
+    });
+    const sm=[['SUMMARY — MOHRE Employee Registry'],['Exported', new Date().toLocaleString()],['Filtered records', rows.length],[],
+      ['By Establishment','Count'], ...Object.entries(byEst).sort((a,b)=>b[1]-a[1]), [],
+      ['By Nationality','Count'], ...Object.entries(byNat).sort((a,b)=>b[1]-a[1]), [],
+      ['By Card Type','Count'], ...Object.entries(byCard).sort((a,b)=>b[1]-a[1])];
+    const ws2 = XLSX.utils.aoa_to_sheet(sm);
+    ws2['!cols']=[{wch:60},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
+    const dt = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, `MOHRE_Employee_List_${dt}.xlsx`);
+  });
+
+  apply();
+})();
+</script>
+</body>
+</html>
